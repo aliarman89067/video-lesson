@@ -16,8 +16,8 @@ function App() {
   return (
     <>
       {/* <MathAnimation /> */}
-      {/* <Note /> */}
-      <Board />
+      <Note />
+      {/* <Board /> */}
     </>
   );
 }

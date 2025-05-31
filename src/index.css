@@ -39,3 +39,24 @@
     transform: translateY(0);
   }
 }
+
+/* width */
+.custom-bar::-webkit-scrollbar {
+  width: 8px;
+}
+
+/* Track */
+.custom-bar::-webkit-scrollbar-track {
+  background: #000;
+}
+
+/* Handle */
+.custom-bar::-webkit-scrollbar-thumb {
+  background: #fff;
+  border-radius: 20px;
+}
+
+/* Handle on hover */
+.custom-bar::-webkit-scrollbar-thumb:hover {
+  background: #fff;
+}

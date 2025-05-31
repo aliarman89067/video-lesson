@@ -133,9 +133,9 @@ const Board = () => {
       </style>
 
       <section className="w-full h-screen grid grid-cols-[0.3fr_1fr] bg-black/90 overflow-hidden">
-        <div className="border-r border-gray-500"></div>
-        <div className="flex flex-col items-center justify-center overflow-y-scroll py-10">
-          <div className="relative w-[80%] min-h-[600px] rounded-xl bg-black overflow-hidden flex flex-col gap-4 p-5 overflow-y-scroll">
+        <div className="border-r border-gray-500 "></div>
+        <div className="flex flex-col items-center justify-center overflow-y-scroll py-10 ">
+          <div className="relative w-[80%] min-h-[600px] rounded-xl bg-black overflow-hidden flex flex-col gap-4 p-5 overflow-y-scroll custom-bar">
             <div className="flex flex-col items-center gap-2">
               <h3 className="text-white text-xl font-semibold text-center underline">
                 {lessonData.title}

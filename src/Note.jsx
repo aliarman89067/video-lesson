@@ -1,5 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSpeechSynthesis } from "react-speech-kit";
+import { motion } from "framer-motion";
+import { AnimatedWords } from "./components/AnimatedWords";
 
 export default function LessonDisplay() {
   const lessonData = {
@@ -54,9 +56,16 @@ export default function LessonDisplay() {
   const paperRef = useRef(null);
   const [dotsCount, setDotsCount] = useState(0);
   const [visibleSections, setVisibleSections] = useState([]);
-  const [images, setImages] = useState({}); // { sectionIndex: imageUrl }
+  const [images, setImages] = useState({});
+  const [isPlay, setIsPlay] = useState(true);
 
   const { speak: startSpeak } = useSpeechSynthesis();
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const currentText = useMemo(() => {
+    return lessonData.sections
+      .filter((sec) => sec.description)
+      .map((item) => item.description);
+  }, [lessonData]);
 
   // Fetch image from Pexels by keyword, per section
   useEffect(() => {
@@ -108,6 +117,7 @@ export default function LessonDisplay() {
       for (let i = 0; i < lessonData.sections.length; i++) {
         const sec = lessonData.sections[i];
         setVisibleSections((prev) => [...prev, i]);
+        setCurrentIndex(i);
         if (sec.dialogue) speak(sec.dialogue);
 
         const wordCount =
@@ -120,19 +130,46 @@ export default function LessonDisplay() {
     revealNext();
   }, []);
 
-  const animateWords = (text) =>
-    text.split(" ").map((word, index) => (
-      <span
-        key={index}
-        className="inline-block opacity-0"
-        style={{
-          animation: `fadeIn 0.4s ease forwards`,
-          animationDelay: `${index * 80}ms`,
-        }}
-      >
-        {word}&nbsp;
-      </span>
-    ));
+  // const currentIndex = useRef(0);
+  // const currentWordsCount = useRef(0);
+
+  // useEffect(() => {
+  //   if (!isPlay || !wordCountReady) return;
+  //   let intervalId;
+  //   const handleWordInterval = () => {
+  //     intervalId = setInterval(() => {
+  //       currentWordsCount.current += 1;
+  //     }, 80);
+  //   };
+  //   handleWordInterval();
+  //   return () => {
+  //     clearInterval(intervalId);
+  //   };
+  // }, [isPlay, wordCountReady]);
+  const animateWords = useMemo(() => {
+    const words = currentText[currentIndex].split(" ");
+    return words.map((word, index) => {
+      return (
+        <motion.span
+          key={index}
+          initial={{ opacity: 0, y: 4 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{
+            duration: 0.4,
+            ease: "easeInOut",
+            delay: index * 0.08,
+          }}
+          className="inline-block opacity-0"
+        >
+          {word}&nbsp;
+        </motion.span>
+      );
+    });
+  }, [currentIndex]);
+
+  const handleChangePlay = () => {
+    setIsPlay(!isPlay);
+  };
 
   const dotLength = useMemo(() => {
     return Array.from({ length: dotsCount }).map((_) =>
@@ -157,99 +194,145 @@ export default function LessonDisplay() {
       <section className="relative w-full h-screen grid grid-cols-[0.3fr_1fr] bg-black/90">
         <div className="border-r border-gray-500"></div>
         <div className="flex flex-col items-center justify-center">
-          <div
-            ref={paperRef}
-            className="relative w-[80%] h-[600px] rounded-xl bg-[#f8edeb] overflow-hidden flex gap-3 overflow-y-scroll"
-          >
-            {/* Dots */}
-            <div className="sticky flex flex-col gap-2 px-1 py-3 top-0">
-              {Array.from({ length: dotsCount }).map((_, i) => (
-                <div
-                  key={i}
-                  className="bg-black/95 rounded-full"
-                  style={{
-                    width: dotLength[i],
-                    height: dotLength[i],
-                  }}
-                />
-              ))}
+          <div className="flex flex-col gap-2 w-[80%] h-[600px]">
+            <div className="flex items-center justify-start w-full gap-4">
+              <div
+                onClick={handleChangePlay}
+                className="w-10 h-10 rounded-full bg-white/80 flex items-center justify-center cursor-pointer"
+              >
+                {isPlay ? (
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    strokeWidth={1.5}
+                    stroke="currentColor"
+                    className="size-6"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M15.75 5.25v13.5m-7.5-13.5v13.5"
+                    />
+                  </svg>
+                ) : (
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    strokeWidth={1.5}
+                    stroke="currentColor"
+                    className="size-6"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 0 1 0 1.972l-11.54 6.347a1.125 1.125 0 0 1-1.667-.986V5.653Z"
+                    />
+                  </svg>
+                )}
+              </div>
             </div>
-
-            {/* Content */}
-            <div className="flex flex-col gap-2 flex-1 py-3 pr-3">
-              {/* Title */}
-              <div className="flex items-center gap-2 mb-4">
-                <h2 className="text-2xl font-semibold text-[#212529] whitespace-nowrap font-serif">
-                  {lessonData.title}
-                </h2>
-                <div
-                  className="h-3 bg-pink-200"
-                  style={{
-                    animation: "growWidth 1s ease-in-out forwards",
-                    width: "100%",
-                  }}
-                />
+            <div
+              ref={paperRef}
+              className="relative w-full h-full rounded-xl bg-[#f8edeb] overflow-hidden flex gap-3 overflow-y-scroll custom-bar"
+            >
+              {/* Dots */}
+              <div className="sticky flex flex-col gap-2 px-1 py-3 top-0">
+                {Array.from({ length: dotsCount }).map((_, i) => (
+                  <div
+                    key={i}
+                    className="bg-black/95 rounded-full"
+                    style={{
+                      width: dotLength[i],
+                      height: dotLength[i],
+                    }}
+                  />
+                ))}
               </div>
 
-              <div className="grid grid-cols-2 gap-8 pb-3">
-                {["left", "right"].map((side) => (
-                  <div key={side} className="flex flex-col gap-6">
-                    {lessonData.sections
-                      .map((sec, i) => ({ ...sec, i }))
-                      .filter(
-                        (sec) =>
-                          sec.side === side && visibleSections.includes(sec.i)
-                      )
-                      .map((sec, idx) => (
-                        <div
-                          key={idx}
-                          className="flex flex-col gap-2 items-start"
-                          style={{ position: "relative" }}
-                        >
-                          {(sec.heading || sec.subheading) && (
-                            <div className="flex items-center gap-2">
-                              <h2 className="text-xl font-medium text-[#212529] whitespace-nowrap font-serif">
-                                {sec.heading}
-                              </h2>
-                              <div
-                                className="h-2 bg-pink-200"
-                                style={{
-                                  animation:
-                                    "growWidth 1s ease-in-out forwards",
-                                  width: "100%",
-                                }}
-                              />
-                            </div>
-                          )}
-                          {sec.subheading && (
-                            <p className="text-md font-semibold text-[#6c757d] italic">
-                              {sec.subheading}
-                            </p>
-                          )}
-                          {sec.description && (
-                            <p className="text-base font-medium text-[#495057] leading-relaxed font-sans">
-                              {animateWords(sec.description)}
-                            </p>
-                          )}
+              {/* Content */}
+              <div className="flex flex-col gap-2 flex-1 py-3 pr-3">
+                {/* Title */}
+                <div className="flex items-center gap-2 mb-4">
+                  <h2 className="text-2xl font-semibold text-[#212529] whitespace-nowrap font-serif">
+                    {lessonData.title}
+                  </h2>
+                  <div
+                    className="h-3 bg-pink-200"
+                    style={{
+                      animation: "growWidth 1s ease-in-out forwards",
+                      width: "100%",
+                    }}
+                  />
+                </div>
 
-                          {/* Show image if exists */}
-                          {images[sec.i] && (
-                            <img
-                              src={images[sec.i]}
-                              alt={sec.imageKeyword || "lesson image"}
-                              width={150}
-                              height={100}
-                              style={{
-                                marginTop: 8,
-                                borderRadius: 8,
-                                objectFit: "cover",
-                              }}
-                            />
-                          )}
-                        </div>
-                      ))}
-                  </div>
-                ))}
+                <div className="grid grid-cols-2 gap-8 pb-3">
+                  {["left", "right"].map((side) => (
+                    <div key={side} className="flex flex-col gap-6">
+                      {lessonData.sections
+                        .map((sec, i) => ({ ...sec, i }))
+                        .filter(
+                          (sec) =>
+                            sec.side === side && visibleSections.includes(sec.i)
+                        )
+                        .map((sec) => {
+                          return (
+                            <div
+                              key={sec.i}
+                              className="flex flex-col gap-2 items-start"
+                              style={{ position: "relative" }}
+                            >
+                              {(sec.heading || sec.subheading) && (
+                                <div className="flex items-center gap-2">
+                                  <h2 className="text-xl font-medium text-[#212529] whitespace-nowrap font-serif">
+                                    {sec.heading}
+                                  </h2>
+                                  <div
+                                    className="h-2 bg-pink-200"
+                                    style={{
+                                      animation:
+                                        "growWidth 1s ease-in-out forwards",
+                                      width: "100%",
+                                    }}
+                                  />
+                                </div>
+                              )}
+                              {sec.subheading && (
+                                <p className="text-md font-semibold text-[#6c757d] italic">
+                                  {sec.subheading}
+                                </p>
+                              )}
+                              {sec.description && (
+                                <AnimatedWords
+                                  key={sec.i}
+                                  index={sec.i}
+                                  description={sec.description}
+                                  isActive={sec.i === currentIndex}
+                                  isPlay={isPlay}
+                                />
+                              )}
+
+                              {/* Show image if exists */}
+                              {images[sec.i] && (
+                                <img
+                                  src={images[sec.i]}
+                                  alt={sec.imageKeyword || "lesson image"}
+                                  width={150}
+                                  height={100}
+                                  style={{
+                                    marginTop: 8,
+                                    borderRadius: 8,
+                                    objectFit: "cover",
+                                  }}
+                                />
+                              )}
+                            </div>
+                          );
+                        })}
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
