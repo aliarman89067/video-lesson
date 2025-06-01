@@ -5,50 +5,79 @@ import { AnimatedWords } from "./components/AnimatedWords";
 
 export default function LessonDisplay() {
   const lessonData = {
-    title: "🌱 Mastering Recursion - The Jim Rohn Way",
+    title: "🎨 Dive Into 2D Animation - Frame by Frame Magic",
     sections: [
       {
         side: "left",
-        heading: "What is Recursion?",
+        heading: "What is 2D Animation?",
         description:
-          "Recursion is a powerful way of solving problems by breaking them down into smaller, similar problems. It's like climbing a staircase step by step — each step takes you closer to the top.",
+          "2D animation is the art of making drawings move. It’s like breathing life into still images using time, motion, and a bit of storytelling magic.",
         dialogue:
-          "Think of recursion as the art of repeating yourself, but with purpose — moving forward one step at a time.",
-        imageKeyword: "staircase",
+          "If you've ever flipped through a sticky note pad to make a stickman dance — congratulations, you’ve done 2D animation!",
+        imageKeyword: "hand-drawn animation flipbook",
       },
       {
         side: "right",
-        heading: "Why Use Recursion?",
+        heading: "The Power of Frames",
         description:
-          "When a problem is too big or complex, recursion helps you handle it by focusing on a smaller piece. Like Jim Rohn said, 'Success is neither magical nor mysterious. Success is the natural consequence of consistently applying basic fundamentals.'",
+          "Animations are built frame by frame. The more frames you draw, the smoother your motion looks — but more frames also mean more work. Animators often use 12 or 24 frames per second (FPS) depending on the style.",
         dialogue:
-          "Recursion teaches us the power of simple, repeated action — the fundamentals that lead to success.",
-        imageKeyword: "success",
+          "Think of each frame like a musical note. One might not impress, but a sequence? That’s rhythm, that’s movement!",
+        imageKeyword: "frame sequence of a bouncing ball",
       },
       {
         side: "left",
-        heading: "How Does It Work?",
+        heading: "Timing and Spacing",
         description:
-          "A recursive method calls itself with simpler inputs until it reaches the base case, where the solution is straightforward. Imagine dropping a pebble into a pond — the ripples spread out, each smaller than the last.",
+          "Timing is how long an action takes. Spacing is how far apart the drawings are. Close drawings mean slow motion. Wide apart? Fast movement. Mastering these creates believable motion.",
         dialogue:
-          "The key is to know when to stop — the base case is your anchor in the storm.",
+          "Timing gives animation its soul. It’s not just movement — it’s how that movement *feels*.",
+        imageKeyword: "animation timing spacing chart",
       },
       {
         side: "right",
-        heading: "Simple Example",
+        heading: "Keyframes and Inbetweens",
         description:
-          "Consider the classic example: factorial calculation. To find the factorial of 5, you multiply 5 by the factorial of 4, which multiplies 4 by the factorial of 3, and so on, until you reach 1.",
+          "Keyframes are your main poses. Inbetweens fill the space between them. You can start by drawing just the keyframes to plan your motion, then add inbetweens for smoothness.",
         dialogue:
-          "Each step depends on the previous — a chain of commitment leading to your goal.",
-        imageKeyword: "chain",
+          "It’s like storytelling — show the beginning, middle, and end first. The details come later.",
+        imageKeyword: "keyframe and inbetween example",
       },
       {
         side: "left",
-        heading: "Remember This",
+        heading: "Simple Practice: Bouncing Ball",
         description:
-          "Recursion is a metaphor for life — small consistent steps, repeated with purpose, build the pathway to greatness.",
+          "Start simple. Draw a ball bouncing. Focus on gravity, squash & stretch, and spacing. This exercise teaches the core of motion physics and timing.",
         dialogue:
-          "As Jim Rohn said, 'Don't wish it were easier, wish you were better.' Recursion demands patience and practice, but rewards growth.",
+          "Even Pixar animators start with a bouncing ball. Master this, and you’re on your way!",
+        imageKeyword: "bouncing ball animation sequence",
+      },
+      {
+        side: "right",
+        heading: "Tools of the Trade",
+        description:
+          "You can animate with pencil and paper, or use digital tools like Krita, RoughAnimator, or Adobe Animate. Start with what’s accessible and upgrade as you grow.",
+        dialogue:
+          "It's not about the tools — it’s about your passion. Even a free app can bring your characters to life.",
+        // No image needed — tools can vary widely
+      },
+      {
+        side: "left",
+        heading: "Bring a Character to Life",
+        description:
+          "Try animating a simple character wave or walk. Focus on consistent shapes, natural motion, and personality. Even a blob can have charm if it moves with intention!",
+        dialogue:
+          "A wave isn’t just a hand going side to side — it’s emotion, timing, and rhythm all in one gesture.",
+        imageKeyword: "simple animated character waving",
+      },
+      {
+        side: "right",
+        heading: "Final Thoughts",
+        description:
+          "2D animation is about patience, practice, and play. Don’t aim for perfect — aim for expressive. Tell a story with every frame you draw.",
+        dialogue:
+          "You don’t need to be a master to start. You just need to start to become one.",
+        // No image — ending message is strong in words
       },
     ],
   };
@@ -58,6 +87,7 @@ export default function LessonDisplay() {
   const [visibleSections, setVisibleSections] = useState([]);
   const [images, setImages] = useState({});
   const [isPlay, setIsPlay] = useState(true);
+  const [visibleImages, setVisibleImages] = useState([]);
 
   const { speak: startSpeak } = useSpeechSynthesis();
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -111,24 +141,73 @@ export default function LessonDisplay() {
   const speak = (text) => {
     startSpeak({ text });
   };
+  const isPlayRef = useRef(isPlay);
+  useEffect(() => {
+    isPlayRef.current = isPlay;
+  }, [isPlay]);
+
+  const loopIndex = useRef(0);
+
+  const secIndex = useRef(0);
+  const timeStampRef = useRef(0);
+  const delayRef = useRef(0);
 
   useEffect(() => {
+    if (!isPlayRef.current) return;
+
+    let timeoutId;
+
     const revealNext = async () => {
-      for (let i = 0; i < lessonData.sections.length; i++) {
+      for (let i = loopIndex.current; i < lessonData.sections.length; i++) {
+        if (!isPlayRef.current) {
+          loopIndex.current = i;
+          break;
+        }
+        if (secIndex.current !== i) {
+          secIndex.current = i;
+          delayRef.current = 0;
+        }
+
+        timeStampRef.current = new Date().getTime();
+
         const sec = lessonData.sections[i];
         setVisibleSections((prev) => [...prev, i]);
         setCurrentIndex(i);
-        if (sec.dialogue) speak(sec.dialogue);
 
         const wordCount =
           (sec.description?.split(" ").length || 0) +
           (sec.subheading?.split(" ").length || 0);
-        const delay = wordCount * 80 + 800;
-        await new Promise((res) => setTimeout(res, delay));
+        if (delayRef.current === 0) {
+          delayRef.current = wordCount * 80 + 800;
+        }
+        console.log("Delay", delayRef.current);
+        await new Promise((res) => {
+          timeoutId = setTimeout(() => {
+            // Only increment if still playing
+            if (isPlayRef.current) {
+              loopIndex.current = i + 1;
+            } else {
+              loopIndex.current = i;
+            }
+            res();
+          }, delayRef.current);
+        });
+
+        if (!isPlayRef.current) break;
       }
     };
+
     revealNext();
-  }, []);
+
+    return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+        const currentTimeStamp = new Date().getTime();
+        const timeStampDiff = currentTimeStamp - timeStampRef.current;
+        delayRef.current = delayRef.current - timeStampDiff;
+      }
+    };
+  }, [isPlay]);
 
   // const currentIndex = useRef(0);
   // const currentWordsCount = useRef(0);
@@ -166,6 +245,15 @@ export default function LessonDisplay() {
       );
     });
   }, [currentIndex]);
+
+  useEffect(() => {
+    if (paperRef.current) {
+      paperRef.current.scrollTo({
+        top: paperRef.current.scrollHeight,
+        behavior: "smooth",
+      });
+    }
+  }, [visibleSections]);
 
   const handleChangePlay = () => {
     setIsPlay(!isPlay);
@@ -242,7 +330,7 @@ export default function LessonDisplay() {
                 {Array.from({ length: dotsCount }).map((_, i) => (
                   <div
                     key={i}
-                    className="bg-black/95 rounded-full"
+                    className="bg-black/90 rounded-full"
                     style={{
                       width: dotLength[i],
                       height: dotLength[i],
@@ -310,23 +398,33 @@ export default function LessonDisplay() {
                                   description={sec.description}
                                   isActive={sec.i === currentIndex}
                                   isPlay={isPlay}
+                                  onComplete={() =>
+                                    setVisibleImages((prev) => [...prev, sec.i])
+                                  }
                                 />
                               )}
 
                               {/* Show image if exists */}
-                              {images[sec.i] && (
-                                <img
-                                  src={images[sec.i]}
-                                  alt={sec.imageKeyword || "lesson image"}
-                                  width={150}
-                                  height={100}
-                                  style={{
-                                    marginTop: 8,
-                                    borderRadius: 8,
-                                    objectFit: "cover",
-                                  }}
-                                />
-                              )}
+                              {images[sec.i] &&
+                                visibleImages.includes(sec.i) && (
+                                  <motion.img
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{
+                                      duration: 0.2,
+                                      ease: "linear",
+                                    }}
+                                    src={images[sec.i]}
+                                    alt={sec.imageKeyword || "lesson image"}
+                                    width={150}
+                                    height={100}
+                                    style={{
+                                      marginTop: 8,
+                                      borderRadius: 8,
+                                      objectFit: "cover",
+                                    }}
+                                  />
+                                )}
                             </div>
                           );
                         })}
