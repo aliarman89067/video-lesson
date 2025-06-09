@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import Board from "./Board";
 import Note from "./Note";
+import Quizes from "./Quizes";
 
 function App() {
   `  // useEffect(() => {
@@ -14,11 +15,12 @@ function App() {
   //     .then((result) => console.log(result.photos[1].src.medium));
   // }, []);`;
   return (
-    <>
-      {/* <MathAnimation /> */}
+    <section className="w-full h-screen grid grid-cols-1 lg:grid-cols-[0.2fr_1fr] bg-black/90 overflow-hidden">
+      <div className="border-r border-gray-500 max-lg:hidden"></div>
       {/* <Note /> */}
-      <Board />
-    </>
+      {/* <Board /> */}
+      <Quizes />
+    </section>
   );
 }
 

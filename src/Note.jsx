@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSpeechSynthesis } from "react-speech-kit";
 import { motion } from "framer-motion";
 import { AnimatedWords } from "./components/AnimatedWords";
+import { useIsMobile } from "./hooks/use-mobile";
 
 export default function LessonDisplay() {
   const lessonData = {
@@ -91,11 +92,6 @@ export default function LessonDisplay() {
 
   const { speak: startSpeak } = useSpeechSynthesis();
   const [currentIndex, setCurrentIndex] = useState(0);
-  const currentText = useMemo(() => {
-    return lessonData.sections
-      .filter((sec) => sec.description)
-      .map((item) => item.description);
-  }, [lessonData]);
 
   // Fetch image from Pexels by keyword, per section
   useEffect(() => {
@@ -152,10 +148,11 @@ export default function LessonDisplay() {
   const timeStampRef = useRef(0);
   const delayRef = useRef(0);
 
+  const isResetRef = useRef(false);
+
+  let timeoutId;
   useEffect(() => {
     if (!isPlayRef.current) return;
-
-    let timeoutId;
 
     const revealNext = async () => {
       for (let i = loopIndex.current; i < lessonData.sections.length; i++) {
@@ -171,7 +168,10 @@ export default function LessonDisplay() {
         timeStampRef.current = new Date().getTime();
 
         const sec = lessonData.sections[i];
-        setVisibleSections((prev) => [...prev, i]);
+        setVisibleSections((prev) => {
+          if (prev.includes(i)) return prev;
+          return [...prev, i];
+        });
         setCurrentIndex(i);
 
         const wordCount =
@@ -180,7 +180,6 @@ export default function LessonDisplay() {
         if (delayRef.current === 0) {
           delayRef.current = wordCount * 80 + 800;
         }
-        console.log("Delay", delayRef.current);
         await new Promise((res) => {
           timeoutId = setTimeout(() => {
             // Only increment if still playing
@@ -189,7 +188,7 @@ export default function LessonDisplay() {
             } else {
               loopIndex.current = i;
             }
-            res();
+            res(true);
           }, delayRef.current);
         });
 
@@ -204,47 +203,15 @@ export default function LessonDisplay() {
         clearTimeout(timeoutId);
         const currentTimeStamp = new Date().getTime();
         const timeStampDiff = currentTimeStamp - timeStampRef.current;
-        delayRef.current = delayRef.current - timeStampDiff;
+        if (!isResetRef.current) {
+          delayRef.current = delayRef.current - timeStampDiff;
+        } else {
+          isResetRef.current = false;
+          timeStampRef.current = new Date().getTime();
+        }
       }
     };
   }, [isPlay]);
-
-  // const currentIndex = useRef(0);
-  // const currentWordsCount = useRef(0);
-
-  // useEffect(() => {
-  //   if (!isPlay || !wordCountReady) return;
-  //   let intervalId;
-  //   const handleWordInterval = () => {
-  //     intervalId = setInterval(() => {
-  //       currentWordsCount.current += 1;
-  //     }, 80);
-  //   };
-  //   handleWordInterval();
-  //   return () => {
-  //     clearInterval(intervalId);
-  //   };
-  // }, [isPlay, wordCountReady]);
-  const animateWords = useMemo(() => {
-    const words = currentText[currentIndex].split(" ");
-    return words.map((word, index) => {
-      return (
-        <motion.span
-          key={index}
-          initial={{ opacity: 0, y: 4 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{
-            duration: 0.4,
-            ease: "easeInOut",
-            delay: index * 0.08,
-          }}
-          className="inline-block opacity-0"
-        >
-          {word}&nbsp;
-        </motion.span>
-      );
-    });
-  }, [currentIndex]);
 
   useEffect(() => {
     if (paperRef.current) {
@@ -258,6 +225,32 @@ export default function LessonDisplay() {
   const handleChangePlay = () => {
     setIsPlay(!isPlay);
   };
+  const handleReset = () => {
+    // Stop playback
+    setIsPlay(false);
+
+    // Reset all state and refs
+    setVisibleSections([]);
+    setVisibleImages([]);
+    setCurrentIndex(0);
+
+    // Reset refs
+    loopIndex.current = 0;
+    secIndex.current = 0;
+    timeStampRef.current = 0;
+    delayRef.current = 0;
+    isPlayRef.current = false;
+    clearTimeout(timeoutId);
+    isResetRef.current = true;
+
+    // Optional: scroll to top of paperRef
+    if (paperRef.current) {
+      paperRef.current.scrollTo({ top: 0, behavior: "smooth" });
+    }
+    setTimeout(() => {
+      setIsPlay(true);
+    }, 100);
+  };
 
   const dotLength = useMemo(() => {
     return Array.from({ length: dotsCount }).map((_) =>
@@ -265,6 +258,68 @@ export default function LessonDisplay() {
     );
   }, [dotsCount]);
 
+  const handlePrev = () => {
+    if (currentIndex > 0) {
+      setCurrentIndex((prev) => prev - 1);
+      if (visibleSections.length === lessonData.sections.length) {
+        loopIndex.current = loopIndex.current - 2;
+      } else {
+        loopIndex.current = loopIndex.current - 1;
+      }
+
+      setVisibleSections((prevVisibleSections) => {
+        const updated = [...prevVisibleSections];
+        const targetIndex = updated.splice(0, updated.length - 2);
+
+        if (updated.length === 1) {
+          return [];
+        } else {
+          return targetIndex;
+        }
+      });
+
+      secIndex.current--;
+      timeStampRef.current = 0;
+      delayRef.current = 0;
+      isResetRef.current = true;
+      isPlayRef.current = false;
+      setIsPlay(!isPlay);
+
+      setTimeout(() => {
+        setIsPlay(isPlay);
+      }, 10);
+    }
+  };
+
+  const handleNext = () => {
+    if (currentIndex < lessonData.sections.length) {
+      setCurrentIndex((prev) => prev + 1);
+
+      loopIndex.current++;
+
+      setVisibleSections((prevVisibleSections) => {
+        const updated = [...prevVisibleSections];
+        const targetIndex = updated.splice(0, updated.length + 1);
+
+        return targetIndex;
+      });
+
+      secIndex.current++;
+      timeStampRef.current = 0;
+      delayRef.current = 0;
+      isResetRef.current = true;
+      isPlayRef.current = false;
+      setIsPlay(!isPlay);
+
+      setVisibleImages((prev) => [...prev, currentIndex]);
+
+      setTimeout(() => {
+        setIsPlay(isPlay);
+      }, 10);
+    }
+  };
+
+  const isMobile = useIsMobile();
   return (
     <>
       <style>
@@ -279,82 +334,112 @@ export default function LessonDisplay() {
           }
         `}
       </style>
-      <section className="relative w-full h-screen grid grid-cols-[0.3fr_1fr] bg-black/90">
-        <div className="border-r border-gray-500"></div>
-        <div className="flex flex-col items-center justify-center">
-          <div className="flex flex-col gap-2 w-[80%] h-[600px]">
-            <div className="flex items-center justify-start w-full gap-4">
-              <div
-                onClick={handleChangePlay}
-                className="w-10 h-10 rounded-full bg-white/80 flex items-center justify-center cursor-pointer"
-              >
-                {isPlay ? (
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    strokeWidth={1.5}
-                    stroke="currentColor"
-                    className="size-6"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M15.75 5.25v13.5m-7.5-13.5v13.5"
-                    />
-                  </svg>
-                ) : (
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    strokeWidth={1.5}
-                    stroke="currentColor"
-                    className="size-6"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 0 1 0 1.972l-11.54 6.347a1.125 1.125 0 0 1-1.667-.986V5.653Z"
-                    />
-                  </svg>
-                )}
-              </div>
+      <div className="flex flex-col items-center justify-center">
+        <div className="flex flex-col gap-2 w-[90%] md:w-[80%] lg:w-[800px] xl:w-[950px] h-[600px]">
+          <div className="flex items-center justify-start w-full gap-4">
+            <div
+              onClick={handleChangePlay}
+              className="w-10 h-10 rounded-full bg-white/80 flex items-center justify-center cursor-pointer"
+            >
+              {isPlay ? (
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  strokeWidth={1.5}
+                  stroke="currentColor"
+                  className="size-6"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M15.75 5.25v13.5m-7.5-13.5v13.5"
+                  />
+                </svg>
+              ) : (
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  strokeWidth={1.5}
+                  stroke="currentColor"
+                  className="size-6"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 0 1 0 1.972l-11.54 6.347a1.125 1.125 0 0 1-1.667-.986V5.653Z"
+                  />
+                </svg>
+              )}
             </div>
             <div
-              ref={paperRef}
-              className="relative w-full h-full rounded-xl bg-[#f8edeb] overflow-hidden flex gap-3 overflow-y-scroll custom-bar"
+              onClick={handlePrev}
+              className="w-10 h-10 rounded-full bg-white/80 text-black flex items-center justify-center cursor-pointer"
             >
-              {/* Dots */}
-              <div className="sticky flex flex-col gap-2 px-1 py-3 top-0">
-                {Array.from({ length: dotsCount }).map((_, i) => (
-                  <div
-                    key={i}
-                    className="bg-black/90 rounded-full"
-                    style={{
-                      width: dotLength[i],
-                      height: dotLength[i],
-                    }}
-                  />
-                ))}
+              Prev
+            </div>
+            <div
+              onClick={handleNext}
+              className="w-10 h-10 rounded-full bg-white/80 text-black flex items-center justify-center cursor-pointer"
+            >
+              Next
+            </div>
+            <div
+              onClick={handleReset}
+              className="w-10 h-10 rounded-full bg-white/80 flex items-center justify-center cursor-pointer"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth={1.5}
+                stroke="currentColor"
+                className="size-6"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M8.25 9V5.25A2.25 2.25 0 0 1 10.5 3h6a2.25 2.25 0 0 1 2.25 2.25v13.5A2.25 2.25 0 0 1 16.5 21h-6a2.25 2.25 0 0 1-2.25-2.25V15m-3 0-3-3m0 0 3-3m-3 3H15"
+                />
+              </svg>
+            </div>
+          </div>
+          <div
+            ref={paperRef}
+            className="relative w-full h-full rounded-xl bg-[#f8edeb] overflow-hidden flex gap-3 overflow-y-scroll custom-bar"
+          >
+            {/* Dots */}
+            <div className="sticky flex flex-col gap-2 px-1 py-3 top-0 max-md:hidden">
+              {Array.from({ length: dotsCount }).map((_, i) => (
+                <div
+                  key={i}
+                  className="bg-black/90 rounded-full"
+                  style={{
+                    width: dotLength[i],
+                    height: dotLength[i],
+                  }}
+                />
+              ))}
+            </div>
+
+            {/* Content */}
+            <div className="flex flex-col gap-2 flex-1 py-3 md:pr-3 max-md:px-3">
+              {/* Title */}
+              <div className="flex gap-2 mb-4">
+                <h2 className="text-base md:text-lg lg:text-xl xl:text-2xl font-semibold text-[#212529] md:whitespace-nowrap font-serif">
+                  {lessonData.title}
+                </h2>
+                <div
+                  className="h-3 bg-pink-200 mt-2 max-md:hidden"
+                  style={{
+                    animation: "growWidth 1s ease-in-out forwards",
+                    width: "100%",
+                  }}
+                />
               </div>
-
-              {/* Content */}
-              <div className="flex flex-col gap-2 flex-1 py-3 pr-3">
-                {/* Title */}
-                <div className="flex items-center gap-2 mb-4">
-                  <h2 className="text-2xl font-semibold text-[#212529] whitespace-nowrap font-serif">
-                    {lessonData.title}
-                  </h2>
-                  <div
-                    className="h-3 bg-pink-200"
-                    style={{
-                      animation: "growWidth 1s ease-in-out forwards",
-                      width: "100%",
-                    }}
-                  />
-                </div>
-
+              {/* TODO: Make it Cleaner letter */}
+              {!isMobile && (
                 <div className="grid grid-cols-2 gap-8 pb-3">
                   {["left", "right"].map((side) => (
                     <div key={side} className="flex flex-col gap-6">
@@ -373,7 +458,7 @@ export default function LessonDisplay() {
                             >
                               {(sec.heading || sec.subheading) && (
                                 <div className="flex items-center gap-2">
-                                  <h2 className="text-xl font-medium text-[#212529] whitespace-nowrap font-serif">
+                                  <h2 className="text-base md:text-lg lg:text-xl font-medium text-[#212529] whitespace-nowrap font-serif">
                                     {sec.heading}
                                   </h2>
                                   <div
@@ -387,17 +472,22 @@ export default function LessonDisplay() {
                                 </div>
                               )}
                               {sec.subheading && (
-                                <p className="text-md font-semibold text-[#6c757d] italic">
+                                <p className="text-base md:text-md font-semibold text-[#6c757d] italic">
                                   {sec.subheading}
                                 </p>
                               )}
                               {sec.description && (
+                                // <p className="text-md font-semibold text-[#6c757d]">
+                                //   {sec.description}
+                                // </p>
                                 <AnimatedWords
-                                  key={sec.i}
-                                  index={sec.i}
-                                  description={sec.description}
+                                  key={sec.i.toString() + sec.description}
+                                  index={sec.i.toString() + sec.description}
+                                  text={sec.description}
                                   isActive={sec.i === currentIndex}
                                   isPlay={isPlay}
+                                  // isReset={isReset}
+                                  className="text-[#495057] text-sm sm:text-base"
                                   onComplete={() =>
                                     setVisibleImages((prev) => [...prev, sec.i])
                                   }
@@ -431,11 +521,88 @@ export default function LessonDisplay() {
                     </div>
                   ))}
                 </div>
-              </div>
+              )}
+              {isMobile && (
+                <div className="grid grid-cols-1 gap-8 pb-3">
+                  <div className="flex flex-col gap-6">
+                    {lessonData.sections
+                      .map((sec, i) => ({ ...sec, i }))
+                      .filter((sec) => visibleSections.includes(sec.i))
+                      .map((sec) => {
+                        return (
+                          <div
+                            key={sec.i}
+                            className="flex flex-col gap-2 items-start"
+                            style={{ position: "relative" }}
+                          >
+                            {(sec.heading || sec.subheading) && (
+                              <div className="flex items-center gap-2">
+                                <h2 className="text-base md:text-lg lg:text-xl font-medium text-[#212529] whitespace-nowrap font-serif">
+                                  {sec.heading}
+                                </h2>
+                                <div
+                                  className="h-2 bg-pink-200"
+                                  style={{
+                                    animation:
+                                      "growWidth 1s ease-in-out forwards",
+                                    width: "100%",
+                                  }}
+                                />
+                              </div>
+                            )}
+                            {sec.subheading && (
+                              <p className="text-base md:text-md font-semibold text-[#6c757d] italic">
+                                {sec.subheading}
+                              </p>
+                            )}
+                            {sec.description && (
+                              // <p className="text-md font-semibold text-[#6c757d]">
+                              //   {sec.description}
+                              // </p>
+                              <AnimatedWords
+                                key={sec.i.toString() + sec.description}
+                                index={sec.i.toString() + sec.description}
+                                text={sec.description}
+                                isActive={sec.i === currentIndex}
+                                isPlay={isPlay}
+                                // isReset={isReset}
+                                className="text-[#495057] text-sm sm:text-base"
+                                onComplete={() =>
+                                  setVisibleImages((prev) => [...prev, sec.i])
+                                }
+                              />
+                            )}
+
+                            {/* Show image if exists */}
+                            {images[sec.i] && visibleImages.includes(sec.i) && (
+                              <motion.img
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{
+                                  duration: 0.2,
+                                  ease: "linear",
+                                }}
+                                src={images[sec.i]}
+                                alt={sec.imageKeyword || "lesson image"}
+                                width={150}
+                                height={100}
+                                style={{
+                                  marginTop: 8,
+                                  borderRadius: 8,
+                                  objectFit: "cover",
+                                }}
+                              />
+                            )}
+                          </div>
+                        );
+                      })}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
-      </section>
+      </div>
     </>
   );
 }

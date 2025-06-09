@@ -1,17 +1,20 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
+import { cn } from "../utils";
 
 export function AnimatedWords({
-  description,
+  text,
   isActive,
   index,
   isPlay,
   onComplete,
+  className,
+  prefix,
 }) {
   const currentWordRef = useRef(0);
   const [currentIndex, setCurrentIndex] = useState(0);
 
-  const words = useMemo(() => description.split(" "), [description]);
+  const words = useMemo(() => text.split(" "), [text]);
 
   useEffect(() => {
     let intervalId;
@@ -19,7 +22,8 @@ export function AnimatedWords({
       intervalId = setInterval(() => {
         currentWordRef.current += 1;
         if (currentWordRef.current >= words.length) {
-          onComplete();
+          onComplete?.();
+          clearInterval(intervalId);
         }
       }, 80);
     }
@@ -42,37 +46,42 @@ export function AnimatedWords({
   // }, [currentIndex]);
 
   const animated = useMemo(() => {
-    if (!isActive) return description.split(" ").map((word, i) => `${word} `);
+    if (!isActive) {
+      return text.split(" ").map((word, i) => `${word} `);
+    }
 
     if (!isPlay) {
-      return description
+      return text
         .split(" ")
         .slice(0, currentIndex)
         .map((word, i) => (
-          <span key={`${i + currentIndex}-${word}`} className="inline-block">
+          <span
+            key={word + i.toString() + index.toString()}
+            className="inline-block"
+          >
             {word}&nbsp;
           </span>
         ));
     }
 
-    const prevDescArr = description
+    const prevDescArr = text
       .split(" ")
       .slice(0, currentIndex)
       .map((word, i) => (
         <span
-          key={`${i + currentIndex}-${word}`}
+          key={word + i.toString() + index.toString()}
           className="inline-block leading-relaxed"
         >
           {word}&nbsp;
         </span>
       ));
 
-    const nextDescArr = description
+    const nextDescArr = text
       .split(" ")
-      .slice(currentIndex, description.length)
+      .slice(currentIndex, text.length)
       .map((word, i) => (
         <motion.span
-          key={`${i + currentIndex}-${word}`}
+          key={word + i.toString() + index.toString()}
           initial={{ opacity: 0, y: 4 }}
           animate={{ opacity: 1, y: 0 }}
           layout="position"
@@ -87,11 +96,16 @@ export function AnimatedWords({
         </motion.span>
       ));
     return [...prevDescArr, ...nextDescArr];
-  }, [description, isActive, isPlay, currentIndex]);
+  }, [text, isActive, isPlay, currentIndex]);
 
   return (
-    <p className="text-base font-medium text-[#495057] leading-relaxed font-sans">
-      {animated}
+    <p
+      className={cn(
+        "text-base font-medium text-white leading-relaxed font-sans",
+        className
+      )}
+    >
+      {prefix} {animated}
     </p>
   );
 }
